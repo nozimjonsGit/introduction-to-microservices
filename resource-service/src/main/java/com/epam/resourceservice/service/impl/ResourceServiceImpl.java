@@ -9,6 +9,7 @@ import com.epam.resourceservice.util.SongMetadataUtil;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.apache.tika.exception.TikaException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import org.xml.sax.SAXException;
@@ -26,7 +27,9 @@ public class ResourceServiceImpl implements ResourceService {
 
     private final ResourceRepository resourceRepository;
     private final RestTemplate restTemplate;
-    private static final String SONG_CLIENT_SERVICE = "http://localhost:8081/songs";
+
+    @Value("${song.client.service.url}")
+    private String songClientServiceUrl;
 
     @Override
     public Resource createAndProcessResource(byte[] audio) throws TikaException, SAXException, IOException {
@@ -38,7 +41,7 @@ public class ResourceServiceImpl implements ResourceService {
             SongMetadataDTO songMetadataDTO = SongMetadataUtil.extractMetadata(audioStream);
             songMetadataDTO.setResourceId(resource.getId());
 
-            restTemplate.postForObject(SONG_CLIENT_SERVICE, songMetadataDTO, Void.class);
+            restTemplate.postForObject(songClientServiceUrl, songMetadataDTO, Void.class);
 
             return resource;
         }

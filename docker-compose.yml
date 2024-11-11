@@ -26,7 +26,7 @@ services:
   resource-service:
     build: ./resource-service
     env_file:
-      - ./resource-service/.env
+      - .env
     ports:
       - "8080:8080"
     depends_on:
@@ -35,7 +35,7 @@ services:
   song-service:
     build: ./song-service
     env_file:
-      - ./song-service/.env
+      - .env
     ports:
       - "8081:8081"
     depends_on:

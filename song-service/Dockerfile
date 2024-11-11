@@ -10,9 +10,9 @@ RUN chmod +x gradlew && ./gradlew dependencies --no-daemon
 
 COPY src /app/src
 
-RUN ./gradlew build --no-daemon -x test
+RUN ./gradlew assemble --no-daemon -x test
 
-FROM openjdk:17-jdk-slim
+FROM eclipse-temurin:17-jre-alpine
 
 LABEL maintainer="nozimjon_nabiev@epam.com"
 
@@ -22,4 +22,4 @@ COPY --from=build /app/build/libs/*.jar song-service.jar
 
 EXPOSE 8081
 
-ENTRYPOINT ["java", "-jar", "song-service.jar"]
+CMD ["java", "-jar", "song-service.jar"]

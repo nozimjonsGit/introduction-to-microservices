@@ -21,7 +21,7 @@ public class Resource {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Lob
+    @Column(name = "audio_data", columnDefinition = "BYTEA")
     private byte[] audioData;
 
     @Temporal(TemporalType.TIMESTAMP)
