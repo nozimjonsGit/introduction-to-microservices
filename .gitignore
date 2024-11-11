@@ -1,0 +1,28 @@
+# Ignore Gradle build and wrapper files
+**/build/
+**/.gradle/
+**/.idea/
+**/.classpath
+**/.project
+**/.settings/
+**/target/
+.gradle
+gradle/wrapper/gradle-wrapper.properties
+gradlew
+gradlew.bat
+
+# Ignore log files and temp files
+*.log
+*.tmp
+*.bak
+
+# Ignore IDE/editor-specific files
+.idea/
+*.iml
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+# Ignore local environment files
+.envrc

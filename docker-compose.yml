@@ -1,0 +1,43 @@
+services:
+  resource-service-db:
+    env_file:
+      - .env
+    image: postgres:alpine
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${RESOURCES_DB}
+    volumes:
+      - ./init-scripts/resource-db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5433:5432"
+
+  song-service-db:
+    env_file:
+      - .env
+    image: postgres:alpine
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${SONGS_DB}
+    volumes:
+      - ./init-scripts/song-db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5434:5432"
+
+  resource-service:
+    build: ./resource-service
+    env_file:
+      - ./resource-service/.env
+    ports:
+      - "8080:8080"
+    depends_on:
+      - resource-service-db
+
+  song-service:
+    build: ./song-service
+    env_file:
+      - ./song-service/.env
+    ports:
+      - "8081:8081"
+    depends_on:
+      - song-service-db
+      - resource-service
