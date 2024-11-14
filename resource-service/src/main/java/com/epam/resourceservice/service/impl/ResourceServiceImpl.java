@@ -17,8 +17,8 @@ import org.xml.sax.SAXException;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -53,13 +53,20 @@ public class ResourceServiceImpl implements ResourceService {
     }
 
     public List<Long> deleteResources(List<Long> ids) {
-        List<Long> deletedIds = new ArrayList<>();
-        for (Long id : ids) {
-            if (resourceRepository.existsById(id)) {
-                resourceRepository.deleteById(id);
-                deletedIds.add(id);
-            }
+        List<Long> existingIds = ids.stream()
+                .filter(resourceRepository::existsById)
+                .toList();
+
+        if (!existingIds.isEmpty()) {
+            resourceRepository.deleteAllById(existingIds);
+
+            String deletedIdString = existingIds.stream()
+                    .map(String::valueOf)
+                    .collect(Collectors.joining(","));
+
+            restTemplate.delete(String.format("%s?id=%s", songClientServiceUrl, deletedIdString));
         }
-        return deletedIds;
+
+        return existingIds;
     }
 }

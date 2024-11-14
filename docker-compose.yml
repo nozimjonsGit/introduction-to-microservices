@@ -1,4 +1,9 @@
 services:
+  eureka-server:
+    build: ./eureka-server
+    ports:
+      - "8761:8761"
+
   resource-service-db:
     env_file:
       - .env
@@ -31,6 +36,7 @@ services:
       - "8080:8080"
     depends_on:
       - resource-service-db
+      - eureka-server
 
   song-service:
     build: ./song-service
@@ -41,3 +47,4 @@ services:
     depends_on:
       - song-service-db
       - resource-service
+      - eureka-server
