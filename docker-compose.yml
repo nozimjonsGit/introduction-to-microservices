@@ -4,6 +4,15 @@ services:
     ports:
       - "8761:8761"
 
+  api-gateway:
+    build: ./api-gateway
+    env_file:
+      - .env
+    ports:
+      - "8080:8080"
+    depends_on:
+      - eureka-server
+
   resource-service-db:
     env_file:
       - .env
@@ -32,8 +41,6 @@ services:
     build: ./resource-service
     env_file:
       - .env
-    ports:
-      - "8080:8080"
     depends_on:
       - resource-service-db
       - eureka-server
@@ -42,8 +49,8 @@ services:
     build: ./song-service
     env_file:
       - .env
-    ports:
-      - "8081:8081"
+    deploy:
+      replicas: 2
     depends_on:
       - song-service-db
       - resource-service
