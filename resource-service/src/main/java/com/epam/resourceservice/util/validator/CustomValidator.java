@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 @UtilityClass
-public class CsvValidator {
+public class CustomValidator {
 
     private static final int MAX_CSV_LENGTH = 200;
 
@@ -17,7 +17,8 @@ public class CsvValidator {
         }
 
         if (csvString.length() > MAX_CSV_LENGTH) {
-            throw new InvalidInputException("CSV string length exceeds the maximum allowed length of " + MAX_CSV_LENGTH);
+            throw new InvalidInputException(String.format("CSV string is too long: received %d characters, maximum allowed length is %d characters",
+                    csvString.length(), MAX_CSV_LENGTH));
         }
 
         List<Long> ids = new ArrayList<>();
@@ -38,5 +39,20 @@ public class CsvValidator {
         }
 
         return ids;
+    }
+
+    public static void validateId(String id) {
+        if (id == null || id.trim().isEmpty()) {
+            throw new InvalidInputException("ID cannot be null or empty.");
+        }
+
+        try {
+            long idValue = Long.parseLong(id);
+            if (idValue <= 0) {
+                throw new InvalidInputException("ID must be a positive number.");
+            }
+        } catch (NumberFormatException e) {
+            throw new InvalidInputException("Invalid value : '" + id + "' for ID. Expected a positive integer.");
+        }
     }
 }

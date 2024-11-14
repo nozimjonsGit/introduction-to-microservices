@@ -3,7 +3,7 @@ package com.epam.songservice.controller;
 import com.epam.songservice.dto.SongDTO;
 import com.epam.songservice.entity.Song;
 import com.epam.songservice.service.SongService;
-import com.epam.songservice.util.validator.CsvValidator;
+import com.epam.songservice.util.validator.CustomValidator;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -32,7 +32,7 @@ public class SongController {
 
     @DeleteMapping(produces = "application/json")
     public ResponseEntity<Map<String, List<Long>>> deleteSongs(@RequestParam("id") String id) {
-        List<Long> ids = CsvValidator.validateAndParseCsv(id);
+        List<Long> ids = CustomValidator.validateAndParseCsv(id);
         List<Long> deletedIds = songService.deleteSongs(ids);
         return ResponseEntity.ok(Map.of("ids", deletedIds));
     }

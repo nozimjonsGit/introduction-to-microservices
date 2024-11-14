@@ -1,9 +1,8 @@
 package com.epam.resourceservice.controller;
 
 import com.epam.resourceservice.entity.Resource;
-import com.epam.resourceservice.exception.custom.InvalidInputException;
 import com.epam.resourceservice.service.ResourceService;
-import com.epam.resourceservice.util.validator.CsvValidator;
+import com.epam.resourceservice.util.validator.CustomValidator;
 import lombok.RequiredArgsConstructor;
 import org.apache.tika.exception.TikaException;
 import org.springframework.http.ResponseEntity;
@@ -29,16 +28,15 @@ public class ResourceController {
     }
 
     @GetMapping(value = "/{id}", produces = "audio/mpeg")
-    public ResponseEntity<byte[]> getResource(@PathVariable Long id) {
-        if (id <= 0)
-            throw new InvalidInputException(String.format("Invalid resource id: %d. Expected a positive integer.", id));
-        Resource resource = resourceService.getResourceById(id);
+    public ResponseEntity<byte[]> getResource(@PathVariable String id) {
+        CustomValidator.validateId(id);
+        Resource resource = resourceService.getResourceById(Long.parseLong(id));
         return ResponseEntity.ok(resource.getAudioData());
     }
 
     @DeleteMapping(produces = "application/json")
     public ResponseEntity<Map<String, List<Long>>> deleteResources(@RequestParam("id") String id) {
-        List<Long> ids = CsvValidator.validateAndParseCsv(id);
+        List<Long> ids = CustomValidator.validateAndParseCsv(id);
         List<Long> deletedIds = resourceService.deleteResources(ids);
         return ResponseEntity.ok(Map.of("ids", deletedIds));
     }

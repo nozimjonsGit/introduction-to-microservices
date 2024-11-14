@@ -39,7 +39,7 @@ public class ResourceServiceImpl implements ResourceService {
             resourceRepository.save(resource);
 
             SongMetadataDTO songMetadataDTO = SongMetadataUtil.extractMetadata(audioStream);
-            songMetadataDTO.setResourceId(resource.getId());
+            songMetadataDTO.setId(String.valueOf(resource.getId()));
 
             restTemplate.postForObject(songClientServiceUrl, songMetadataDTO, Void.class);
 

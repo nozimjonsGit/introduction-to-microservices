@@ -2,6 +2,7 @@ package com.epam.songservice.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 
 @Getter
@@ -9,6 +10,9 @@ import lombok.*;
 @NoArgsConstructor
 @AllArgsConstructor
 public class SongDTO {
+    @NotBlank(message = "Id must not be null")
+    private String id;
+
     @NotBlank(message = "Song name must not be blank")
     private String name;
 
@@ -18,11 +22,10 @@ public class SongDTO {
     @NotBlank(message = "Album must not be blank")
     private String album;
 
-    @NotNull(message = "Length must not be null")
-    private String length;
+    @NotNull(message = "Duration must not be null")
+    private String duration;
 
-    @NotNull(message = "Resource ID must not be null")
-    private Long resourceId;
-
+    @NotNull(message = "Year must not be null")
+    @Size(min = 4, max = 4, message = "Year must be in yyyy format")
     private String year;
 }

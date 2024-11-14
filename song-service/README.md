@@ -30,11 +30,11 @@ The Song Service is a microservice dedicated to managing metadata related to son
 - **Request Body**: 
   ```json
   {
+      "id": 1,
       "name": "We are the champions",
       "artist": "Queen",
       "album": "News of the world",
       "length": "2:59",
-      "resourceId": "123",
       "year": "1977"
   }
   ```

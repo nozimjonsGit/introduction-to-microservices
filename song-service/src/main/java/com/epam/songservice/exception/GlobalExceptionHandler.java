@@ -1,5 +1,6 @@
 package com.epam.songservice.exception;
 
+import com.epam.songservice.exception.custom.DuplicateRecordException;
 import com.epam.songservice.exception.custom.InvalidInputException;
 import com.epam.songservice.exception.custom.SongNotFoundException;
 import lombok.NonNull;
@@ -29,6 +30,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(InvalidInputException.class)
     public ResponseEntity<Object> handleInvalidInputException(InvalidInputException ex, WebRequest request) {
         return buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage(), request);
+    }
+
+    @ExceptionHandler(DuplicateRecordException.class)
+    public ResponseEntity<Object> handleDuplicateRecordException(DuplicateRecordException ex, WebRequest request) {
+        return buildErrorResponse(HttpStatus.CONFLICT, ex.getMessage(), request);
     }
 
     @ExceptionHandler(Exception.class)
