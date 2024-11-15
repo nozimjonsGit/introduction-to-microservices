@@ -2,6 +2,7 @@ package com.epam.songservice.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 
@@ -23,6 +24,9 @@ public class SongDTO {
     private String album;
 
     @NotNull(message = "Duration must not be null")
+    @Pattern(
+            regexp = "^(([0-9]+:[0-5][0-9])|([0-9]+:[0-5][0-9]:[0-5][0-9]))$",
+            message = "Duration must be in the format mm:ss or hh:mm:ss, with valid minutes and seconds.")
     private String duration;
 
     @NotNull(message = "Year must not be null")
