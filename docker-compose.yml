@@ -37,6 +37,19 @@ services:
     ports:
       - "5434:5432"
 
+  localstack:
+    container_name: localstack
+    image: localstack/localstack
+    ports:
+      - "4566:4566"
+      - "4510-4559:4510-4559"
+    environment:
+      - DEBUG=1
+    volumes:
+      - "./localstack:/var/lib/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "./localstack/init-scripts:/etc/localstack/init/ready.d"
+
   resource-service:
     build: ./resource-service
     env_file:
@@ -44,6 +57,14 @@ services:
     depends_on:
       - resource-service-db
       - eureka-server
+      - localstack
+
+  resource-processor:
+    build: ./resource-processor
+    env_file:
+      - .env
+    depends_on:
+      - resource-service
 
   song-service:
     build: ./song-service
@@ -52,6 +73,7 @@ services:
     deploy:
       replicas: 2
     depends_on:
+      - resource-processor
       - song-service-db
       - resource-service
       - eureka-server

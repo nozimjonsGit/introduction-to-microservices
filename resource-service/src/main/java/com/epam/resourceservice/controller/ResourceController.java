@@ -4,12 +4,9 @@ import com.epam.resourceservice.entity.Resource;
 import com.epam.resourceservice.service.ResourceService;
 import com.epam.resourceservice.util.validator.CustomValidator;
 import lombok.RequiredArgsConstructor;
-import org.apache.tika.exception.TikaException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.xml.sax.SAXException;
 
-import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -21,8 +18,7 @@ public class ResourceController {
     private final ResourceService resourceService;
 
     @PostMapping(consumes = "audio/mpeg", produces = "application/json")
-    public ResponseEntity<Map<String, Long>> createResource(@RequestBody byte[] audio)
-            throws TikaException, SAXException, IOException {
+    public ResponseEntity<Map<String, Long>> createResource(@RequestBody byte[] audio) {
         Resource savedResource = resourceService.createAndProcessResource(audio);
         return ResponseEntity.ok(Map.of("id", savedResource.getId()));
     }
@@ -30,8 +26,8 @@ public class ResourceController {
     @GetMapping(value = "/{id}", produces = "audio/mpeg")
     public ResponseEntity<byte[]> getResource(@PathVariable String id) {
         CustomValidator.validateId(id);
-        Resource resource = resourceService.getResourceById(Long.parseLong(id));
-        return ResponseEntity.ok(resource.getAudioData());
+        byte[] file = resourceService.getResourceFileById(Long.parseLong(id));
+        return ResponseEntity.ok(file);
     }
 
     @DeleteMapping(produces = "application/json")

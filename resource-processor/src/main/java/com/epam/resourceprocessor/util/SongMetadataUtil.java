@@ -1,6 +1,6 @@
-package com.epam.resourceservice.util;
+package com.epam.resourceprocessor.util;
 
-import com.epam.resourceservice.dto.SongMetadataDTO;
+import com.epam.resourceprocessor.dto.SongMetadataDTO;
 import lombok.experimental.UtilityClass;
 import org.apache.tika.exception.TikaException;
 import org.apache.tika.metadata.Metadata;
