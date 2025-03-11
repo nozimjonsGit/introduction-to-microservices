@@ -1,5 +1,6 @@
 CREATE TABLE IF NOT EXISTS resources (
     id BIGSERIAL PRIMARY KEY,
-    audio_data BYTEA,
+    file_url VARCHAR(255) NOT NULL,
+    file_key VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

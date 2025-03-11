@@ -1,4 +1,4 @@
-package com.epam.resourceservice.dto;
+package com.epam.resourceprocessor.dto;
 
 import lombok.Getter;
 import lombok.Setter;

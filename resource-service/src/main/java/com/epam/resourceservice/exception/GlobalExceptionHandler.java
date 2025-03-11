@@ -1,7 +1,9 @@
 package com.epam.resourceservice.exception;
 
+import com.epam.resourceservice.exception.custom.FileStorageException;
 import com.epam.resourceservice.exception.custom.InvalidInputException;
 import com.epam.resourceservice.exception.custom.ResourceNotFoundException;
+import com.epam.resourceservice.exception.custom.ResourceProcessingException;
 import lombok.NonNull;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -36,6 +38,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             @NonNull HttpStatusCode status,
             @NonNull WebRequest request) {
         return buildErrorResponse(HttpStatus.BAD_REQUEST, ex.getMessage() + ". Only Mp3 files are allowed.", request);
+    }
+
+    @ExceptionHandler({ResourceProcessingException.class, FileStorageException.class})
+    public ResponseEntity<Object> handleProcessingExceptions(Exception ex, WebRequest request) {
+        return buildErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage(), request);
     }
 
     @ExceptionHandler(Exception.class)

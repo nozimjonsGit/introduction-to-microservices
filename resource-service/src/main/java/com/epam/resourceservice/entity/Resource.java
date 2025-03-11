@@ -21,8 +21,11 @@ public class Resource {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "audio_data", columnDefinition = "BYTEA")
-    private byte[] audioData;
+    @Column(name = "file_url", nullable = false)
+    private String fileUrl;
+
+    @Column(name = "file_key", nullable = false)
+    private String fileKey;
 
     @Temporal(TemporalType.TIMESTAMP)
     @CreationTimestamp(source = SourceType.VM)
