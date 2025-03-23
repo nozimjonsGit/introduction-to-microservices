@@ -4,6 +4,7 @@ import com.epam.resourceservice.entity.Resource;
 import com.epam.resourceservice.exception.custom.ResourceNotFoundException;
 import com.epam.resourceservice.exception.custom.ResourceProcessingException;
 import com.epam.resourceservice.repository.ResourceRepository;
+import com.epam.resourceservice.service.KafkaProducerService;
 import com.epam.resourceservice.service.ResourceService;
 import com.epam.resourceservice.service.S3Service;
 import jakarta.transaction.Transactional;
@@ -25,6 +26,7 @@ public class ResourceServiceImpl implements ResourceService {
 
     private final ResourceRepository resourceRepository;
     private final S3Service s3Service;
+    private final KafkaProducerService kafkaProducerService;
 
     @Override
     public Resource createAndProcessResource(byte[] audio) {
@@ -38,6 +40,7 @@ public class ResourceServiceImpl implements ResourceService {
             resource.setFileKey(key);
             resourceRepository.save(resource);
 
+            kafkaProducerService.sendResourceUploadedMessage(resource.getId());
             return resource;
         } catch (Exception ex) {
             if (fileUrl != null) {

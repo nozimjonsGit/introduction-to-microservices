@@ -13,6 +13,27 @@ services:
     depends_on:
       - eureka-server
 
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    ports:
+      - "9093:9093"
+
   resource-service-db:
     env_file:
       - .env
@@ -58,6 +79,7 @@ services:
       - resource-service-db
       - eureka-server
       - localstack
+      - kafka
 
   resource-processor:
     build: ./resource-processor
@@ -65,6 +87,7 @@ services:
       - .env
     depends_on:
       - resource-service
+      - kafka
 
   song-service:
     build: ./song-service
