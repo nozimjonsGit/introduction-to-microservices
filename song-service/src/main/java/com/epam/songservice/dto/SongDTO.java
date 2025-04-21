@@ -10,6 +10,8 @@ import lombok.*;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@EqualsAndHashCode
+@Builder
 public class SongDTO {
     @NotBlank(message = "Id must not be null")
     private String id;
