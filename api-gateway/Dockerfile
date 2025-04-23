@@ -16,6 +16,8 @@ FROM eclipse-temurin:17-jre-alpine
 
 LABEL maintainer="nozimjon_nabiev@epam.com"
 
+RUN apk add --no-cache curl
+
 WORKDIR /app
 
 COPY --from=build /app/build/libs/*.jar api-gateway.jar
