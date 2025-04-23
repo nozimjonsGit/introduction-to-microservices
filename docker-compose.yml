@@ -106,7 +106,7 @@ services:
       - "/var/run/docker.sock:/var/run/docker.sock"
       - "./localstack/init-scripts:/etc/localstack/init/ready.d"
     healthcheck:
-      test: [ "CMD", "awslocal", "s3api", "wait", "bucket-exists", "--bucket", "resource-bucket" ]
+      test: [ "CMD", "awslocal", "s3api", "wait", "bucket-exists", "--bucket", "${AWS_S3_BUCKET_NAME}" ]
       interval: 30s
       timeout: 10s
       retries: 5
