@@ -8,10 +8,20 @@ spring:
           uri: lb://RESOURCE-SERVICE
           predicates:
             - Path=/resources/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: resourceCB
+                fallbackUri: forward:/fallback/resource
         - id: song-service
           uri: lb://SONG-SERVICE
           predicates:
             - Path=/songs/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: songCB
+                fallbackUri: forward:/fallback/song
 
 eureka:
   client:
