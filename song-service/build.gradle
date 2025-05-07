@@ -1,7 +1,9 @@
 plugins {
     id 'java'
+    id 'maven-publish'
     id 'org.springframework.boot' version '3.3.5'
     id 'io.spring.dependency-management' version '1.1.6'
+    id 'org.springframework.cloud.contract' version '4.2.0'
 }
 
 group = 'com.epam'
@@ -10,6 +12,12 @@ version = '0.0.1-SNAPSHOT'
 configurations {
     compileOnly {
         extendsFrom annotationProcessor
+    }
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
     }
 }
 
@@ -35,6 +43,7 @@ dependencies {
     runtimeOnly 'org.postgresql:postgresql'
     annotationProcessor 'org.projectlombok:lombok'
     testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.cloud:spring-cloud-starter-contract-verifier'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 }
 
@@ -46,4 +55,56 @@ dependencyManagement {
 
 tasks.named('test') {
     useJUnitPlatform()
+}
+
+task consumerContractTest(type: Test, group: 'verification') {
+    useJUnitPlatform()
+    description = "Task to run contract tests"
+    environment "spring.profiles.active", "test"
+
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+
+    include("**/contract/**")
+}
+
+contracts {
+    testFramework = "JUNIT5"
+    baseClassForTests = "com.epam.songservice.SongContractBaseTest"
+    contractsDslDir = new File("${projectDir}/src/contractTest/resources/contracts/")
+}
+
+contractTest {
+    useJUnitPlatform()
+    finalizedBy(publishToMavenLocal, consumerContractTest)
+    testLogging {
+        events "passed", "skipped", "failed"
+    }
+}
+
+sourceSets {
+    contractTest {
+        java {
+            srcDir '/src/contractTest/java'
+        }
+    }
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifact bootJar
+            artifact verifierStubsJar
+
+            versionMapping {
+                usage("java-api") {
+                    fromResolutionOf("runtimeClasspath")
+                }
+                usage("java-runtime") {
+                    fromResolutionResult()
+                }
+            }
+        }
+    }
 }
