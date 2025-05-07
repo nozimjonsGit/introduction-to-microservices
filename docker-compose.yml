@@ -1,8 +1,16 @@
+version: '3.8'
+
 services:
   eureka-server:
     build: ./eureka-server
     ports:
       - "8761:8761"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8761/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
   api-gateway:
     build: ./api-gateway
@@ -11,7 +19,14 @@ services:
     ports:
       - "8080:8080"
     depends_on:
-      - eureka-server
+      eureka-server:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/actuator/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
 
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
@@ -24,7 +39,8 @@ services:
   kafka:
     image: confluentinc/cp-kafka:latest
     depends_on:
-      - zookeeper
+      zookeeper:
+        condition: service_started
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -33,30 +49,48 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     ports:
       - "9093:9093"
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
   resource-service-db:
     env_file:
       - .env
     image: postgres:alpine
     environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${RESOURCES_DB}
     volumes:
       - ./init-scripts/resource-db/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${RESOURCES_DB}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
 
   song-service-db:
     env_file:
       - .env
     image: postgres:alpine
     environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
       POSTGRES_DB: ${SONGS_DB}
     volumes:
       - ./init-scripts/song-db/init.sql:/docker-entrypoint-initdb.d/init.sql
     ports:
       - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${SONGS_DB}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
 
   localstack:
     container_name: localstack
@@ -65,29 +99,42 @@ services:
       - "4566:4566"
       - "4510-4559:4510-4559"
     environment:
+      - SERVICES=s3
       - DEBUG=1
     volumes:
       - "./localstack:/var/lib/localstack"
       - "/var/run/docker.sock:/var/run/docker.sock"
       - "./localstack/init-scripts:/etc/localstack/init/ready.d"
+    healthcheck:
+      test: [ "CMD", "awslocal", "s3api", "wait", "bucket-exists", "--bucket", "${AWS_S3_BUCKET_NAME}" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
 
   resource-service:
     build: ./resource-service
     env_file:
       - .env
     depends_on:
-      - resource-service-db
-      - eureka-server
-      - localstack
-      - kafka
+      resource-service-db:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
 
   resource-processor:
     build: ./resource-processor
     env_file:
       - .env
     depends_on:
-      - resource-service
-      - kafka
+      resource-service:
+        condition: service_started
+      kafka:
+        condition: service_healthy
 
   song-service:
     build: ./song-service
@@ -96,7 +143,9 @@ services:
     deploy:
       replicas: 2
     depends_on:
-      - resource-processor
-      - song-service-db
-      - resource-service
-      - eureka-server
+      song-service-db:
+        condition: service_healthy
+      resource-processor:
+        condition: service_started
+      eureka-server:
+        condition: service_healthy
