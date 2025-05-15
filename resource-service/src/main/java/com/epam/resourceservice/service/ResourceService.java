@@ -8,4 +8,5 @@ public interface ResourceService {
     Resource createAndProcessResource(byte[] audio);
     byte[] getResourceFileById(Long id);
     List<Long> deleteResources(List<Long> ids);
+    void markProcessed(Long resourceId);
 }

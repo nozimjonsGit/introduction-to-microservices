@@ -9,4 +9,5 @@ public interface SongService {
     Song createSong(SongDTO song);
     SongDTO getSongById(Long id);
     List<Long> deleteSongs(List<Long> ids);
+    void deleteSongById(Long id);
 }
