@@ -21,11 +21,17 @@ public class Resource {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "file_url", nullable = false)
-    private String fileUrl;
-
-    @Column(name = "file_key", nullable = false)
+    @Column(name = "file_key", nullable = false, unique = true)
     private String fileKey;
+
+    @Column(nullable = false)
+    private String bucket;
+
+    @Column(nullable = false)
+    private String state;
+
+    @Column(nullable = false)
+    private String path;
 
     @Temporal(TemporalType.TIMESTAMP)
     @CreationTimestamp(source = SourceType.VM)
