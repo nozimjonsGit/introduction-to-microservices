@@ -1,151 +1,229 @@
 package com.epam.resourceservice.service;
 
+import com.epam.resourceservice.client.StorageServiceClient;
+import com.epam.resourceservice.dto.ResourceStorageDTO;
+import com.epam.resourceservice.entity.OutboxEvent;
 import com.epam.resourceservice.entity.Resource;
+import com.epam.resourceservice.entity.enums.EventType;
+import com.epam.resourceservice.entity.enums.StorageType;
+import com.epam.resourceservice.exception.custom.ResourceNotFoundException;
 import com.epam.resourceservice.exception.custom.ResourceProcessingException;
+import com.epam.resourceservice.repository.OutboxEventRepository;
 import com.epam.resourceservice.repository.ResourceRepository;
 import com.epam.resourceservice.service.impl.ResourceServiceImpl;
+import org.assertj.core.api.BDDAssertions;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.MockitoAnnotations;
+import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.io.InputStream;
-import java.util.ArrayList;
+import java.io.ByteArrayInputStream;
 import java.util.List;
+import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.groups.Tuple.tuple;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.BDDMockito.*;
+import static org.mockito.Mockito.never;
 
-public class ResourceServiceImplTest {
+@ExtendWith(MockitoExtension.class)
+class ResourceServiceImplTest {
+
     @Mock
     private ResourceRepository resourceRepository;
+
+    @Mock
+    private StorageServiceClient storageServiceClient;
 
     @Mock
     private S3Service s3Service;
 
     @Mock
-    private KafkaProducerService kafkaProducerService;
+    private OutboxEventRepository outboxEventRepository;
 
     @InjectMocks
-    private ResourceServiceImpl resourceService;
+    private ResourceServiceImpl underTest;
 
-    private static byte [] AUDIO;
+    private byte[] sampleAudio;
+
+    private ResourceStorageDTO staging;
 
     @BeforeEach
     void setUp() {
-        MockitoAnnotations.openMocks(this);
-        AUDIO = "test audio data".getBytes();
+        sampleAudio = "dummy-audio".getBytes();
+        staging = new ResourceStorageDTO(1L, StorageType.STAGING,
+                "staging-bucket", "staging-path");
     }
 
     @Test
-    void createAndProcessResource_Success() {
-        String expectedUrl = "http://resource-bucket/file.mp3";
+    @DisplayName("createAndProcessResource: successful upload records CREATE event")
+    void createAndProcessResource_successRecordsOutboxEvent() {
+        // given
+        given(storageServiceClient.getStorage(StorageType.STAGING)).willReturn(staging);
 
-        when(s3Service.uploadFile(anyString(), any(InputStream.class), eq(AUDIO.length), eq("audio/mpeg")))
-                .thenReturn(expectedUrl);
-        when(resourceRepository.save(any(Resource.class))).thenAnswer(invocationOnMock -> {
-            Resource resource = invocationOnMock.getArgument(0);
-            resource.setId(42L);
-            return resource;
-        });
+        given(s3Service.uploadFile(
+                eq("staging-bucket"),
+                startsWith("staging-path/"),
+                any(ByteArrayInputStream.class),
+                eq((long) sampleAudio.length),
+                eq("audio/mpeg")
+        )).willReturn("unused-url");
 
-        Resource resource = resourceService.createAndProcessResource(AUDIO);
+        ArgumentCaptor<Resource> resourceCaptor = ArgumentCaptor.forClass(Resource.class);
+        willAnswer(inv -> {
+            var r = inv.getArgument(0, Resource.class);
+            r.setId(101L);
+            return r;
+        }).given(resourceRepository).save(resourceCaptor.capture());
 
-        assertNotNull(resource);
-        assertEquals(42L, resource.getId());
-        verify(kafkaProducerService).sendResourceUploadedMessage(42L);
-    }
+        // when
+        Resource result = underTest.createAndProcessResource(sampleAudio);
 
+        // then
+        BDDAssertions.then(result.getId()).isEqualTo(101L);
 
-    @Test
-    void createAndProcessResource_SavingResourceFails_Compensation() {
-        String expectedUrl = "http://resource-bucket/file.mp3";
+        Resource saved = resourceCaptor.getValue();
+        BDDAssertions.then(saved.getBucket()).isEqualTo("staging-bucket");
+        BDDAssertions.then(saved.getPath()).isEqualTo("staging-path");
+        BDDAssertions.then(saved.getState()).isEqualTo(StorageType.STAGING.name());
+        BDDAssertions.then(saved.getFileKey()).endsWith(".mp3");
 
-        when(s3Service.uploadFile(anyString(), any(), anyLong(), anyString()))
-                .thenReturn(expectedUrl);
-
-        when(resourceRepository.save(any(Resource.class))).thenThrow(new RuntimeException("DB error"));
-
-        ResourceProcessingException ex = assertThrows(ResourceProcessingException.class,
-                () -> resourceService.createAndProcessResource(AUDIO));
-
-        assertEquals("Failed to create and process resource", ex.getMessage());
-        verify(kafkaProducerService, never()).sendResourceUploadedMessage(anyLong());
-        verify(s3Service).deleteFile(anyString());
-    }
-
-
-    @Test
-    void createAndProcessResource_UploadFails_NoCompensation() {
-        doThrow(new RuntimeException("Upload failed"))
-                .when(s3Service).uploadFile(anyString(), any(InputStream.class), anyLong(), anyString());
-
-        ResourceProcessingException ex = assertThrows(ResourceProcessingException.class,
-                () -> resourceService.createAndProcessResource(AUDIO));
-
-        assertEquals("Failed to create and process resource", ex.getMessage());
-        verify(resourceRepository, never()).save(any(Resource.class));
-        verify(kafkaProducerService, never()).sendResourceUploadedMessage(anyLong());
-        verify(s3Service, never()).deleteFile(anyString());
+        ArgumentCaptor<OutboxEvent> evtCaptor = ArgumentCaptor.forClass(OutboxEvent.class);
+        then(outboxEventRepository).should().save(evtCaptor.capture());
+        OutboxEvent evt = evtCaptor.getValue();
+        BDDAssertions.then(evt.getEventType()).isEqualTo(EventType.CREATE);
+        BDDAssertions.then(evt.getResourceId()).isEqualTo(101L);
+        BDDAssertions.then(evt.getBucket()).isEqualTo("staging-bucket");
+        BDDAssertions.then(evt.getPath()).isEqualTo("staging-path");
+        BDDAssertions.then(evt.getFileKey()).isEqualTo(saved.getFileKey());
+        BDDAssertions.then(evt.getResourceData()).containsExactly(sampleAudio);
     }
 
     @Test
-    void getResourceFileById_Success() {
-        Long resourceId = 1L;
-        Resource resource = new Resource();
-        resource.setId(resourceId);
-        resource.setFileKey("test-key");
-        resource.setFileUrl("http://resource-bucket/test-key");
+    @DisplayName("createAndProcessResource: DB save fails compensates and skips outbox")
+    void createAndProcessResource_saveFailsCompensatesAndSkipsOutbox() {
+        // given
+        given(storageServiceClient.getStorage(StorageType.STAGING)).willReturn(staging);
 
-        when(resourceRepository.findById(resourceId)).thenReturn(java.util.Optional.of(resource));
-        when(s3Service.downloadFile("test-key")).thenReturn("test audio data".getBytes());
+        given(s3Service.uploadFile(anyString(), anyString(), any(), anyLong(), anyString()))
+                .willReturn("dummy-url");
+        given(resourceRepository.save(any(Resource.class)))
+                .willThrow(new RuntimeException("db-error"));
 
-        byte[] result = resourceService.getResourceFileById(resourceId);
+        // when / then
+        ResourceProcessingException ex = assertThrows(
+                ResourceProcessingException.class,
+                () -> underTest.createAndProcessResource(sampleAudio)
+        );
+        BDDAssertions.then(ex).hasMessage("Failed to create and process resource");
 
-        assertNotNull(result);
-        assertEquals("test audio data", new String(result));
+        then(s3Service).should().deleteFile(
+                eq("staging-bucket"),
+                startsWith("staging-path/")
+        );
+        then(outboxEventRepository).should(never()).save(any());
     }
 
     @Test
-    void getResourceFileById_ResourceNotFound() {
-        Long resourceId = 1L;
+    @DisplayName("createAndProcessResource: upload fails skips persistence and outbox")
+    void createAndProcessResource_uploadFailsSkipsPersistenceAndOutbox() {
+        // given
+        given(storageServiceClient.getStorage(StorageType.STAGING)).willReturn(staging);
 
-        when(resourceRepository.findById(resourceId)).thenReturn(java.util.Optional.empty());
+        willThrow(new RuntimeException("upload-error"))
+                .given(s3Service).uploadFile(anyString(), anyString(), any(), anyLong(), anyString());
 
-        try {
-            resourceService.getResourceFileById(resourceId);
-        } catch (Exception e) {
-            assertEquals(String.format("Resource with ID %d not found", resourceId), e.getMessage());
-        }
+        // when / then
+        assertThrows(ResourceProcessingException.class,
+                () -> underTest.createAndProcessResource(sampleAudio));
+
+        then(resourceRepository).should(never()).save(any());
+        then(outboxEventRepository).should(never()).save(any());
+        then(s3Service).should().deleteFile(
+                eq("staging-bucket"),
+                startsWith("staging-path/")
+        );
     }
 
     @Test
-    void deleteResources_Success() {
-        Resource resource1 = new Resource();
-        resource1.setId(1L);
-        resource1.setFileKey("key1");
+    @DisplayName("getResourceFileById: returns bytes when resource exists")
+    void getResourceFileById_returnsBytesWhenExists() {
+        // given
+        Long id = 5L;
+        var res = new Resource();
+        res.setId(id);
+        res.setBucket("b");
+        res.setPath("p");
+        res.setFileKey("k.mp3");
+        given(resourceRepository.findById(id)).willReturn(Optional.of(res));
+        given(s3Service.downloadFile("b", "p/k.mp3"))
+                .willReturn("data".getBytes());
 
-        Resource resource2 = new Resource();
-        resource2.setId(2L);
-        resource2.setFileKey("key2");
+        // when
+        byte[] data = underTest.getResourceFileById(id);
 
-        when(resourceRepository.findAllById(anyList())).thenReturn(List.of(resource1, resource2));
-
-        List<Long> deletedIds = resourceService.deleteResources(List.of(1L, 2L));
-
-        assertEquals(List.of(1L, 2L), deletedIds);
-        verify(s3Service).deleteFile("key1");
-        verify(s3Service).deleteFile("key2");
+        // then
+        BDDAssertions.then(data).containsExactly("data".getBytes());
     }
 
     @Test
-    void deleteResources_ResourceNotFound() {
-        when(resourceRepository.findAllById(anyList())).thenReturn(new ArrayList<>());
+    @DisplayName("getResourceFileById: throws when missing")
+    void getResourceFileById_throwsWhenMissing() {
+        // given
+        given(resourceRepository.findById(99L)).willReturn(Optional.empty());
 
-        List<Long> deletedIds = resourceService.deleteResources(List.of(1L, 2L));
+        // when / then
+        assertThrows(ResourceNotFoundException.class,
+                () -> underTest.getResourceFileById(99L));
+    }
 
-        assertTrue(deletedIds.isEmpty());
+    @Test
+    @DisplayName("deleteResources: deletes, records DELETE events, and returns IDs")
+    void deleteResources_deletesAndRecordsEvents() {
+        // given
+        Resource r1 = new Resource(); r1.setId(1L); r1.setBucket("b1"); r1.setPath("p1"); r1.setFileKey("k1");
+        Resource r2 = new Resource(); r2.setId(2L); r2.setBucket("b2"); r2.setPath("p2"); r2.setFileKey("k2");
+        given(resourceRepository.findAllById(List.of(1L, 2L)))
+                .willReturn(List.of(r1, r2));
+
+        // when
+        List<Long> deleted = underTest.deleteResources(List.of(1L, 2L));
+
+        // then
+        BDDAssertions.then(deleted).containsExactly(1L, 2L);
+        then(s3Service).should().deleteFile("b1", "p1/k1");
+        then(s3Service).should().deleteFile("b2", "p2/k2");
+
+        ArgumentCaptor<OutboxEvent> captor = ArgumentCaptor.forClass(OutboxEvent.class);
+        then(outboxEventRepository).should(times(2)).save(captor.capture());
+        BDDAssertions.then(captor.getAllValues())
+                .extracting(OutboxEvent::getEventType, OutboxEvent::getResourceId)
+                .containsExactly(
+                        tuple(EventType.DELETE, 1L),
+                        tuple(EventType.DELETE, 2L)
+                );
+
+        then(resourceRepository).should().deleteAllById(List.of(1L, 2L));
+    }
+
+    @Test
+    @DisplayName("deleteResources: returns empty when none found")
+    void deleteResources_returnsEmptyWhenNoneFound() {
+        // given
+        given(resourceRepository.findAllById(anyList())).willReturn(List.of());
+
+        // when
+        List<Long> deleted = underTest.deleteResources(List.of(3L, 4L));
+
+        // then
+        BDDAssertions.then(deleted).isEmpty();
+        then(s3Service).should(never()).deleteFile(anyString(), anyString());
+        then(outboxEventRepository).should(never()).save(any());
+        then(resourceRepository).should().deleteAllById(List.of());
     }
 }
