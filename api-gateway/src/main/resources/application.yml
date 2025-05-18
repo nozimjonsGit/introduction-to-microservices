@@ -41,7 +41,14 @@ management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: health, info, prometheus
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    tags:
+      application: api-gateway
 
 server:
   port: 8080

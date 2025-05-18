@@ -20,6 +20,6 @@ WORKDIR /app
 
 COPY --from=build /app/build/libs/*.jar resource-service.jar
 
-EXPOSE 8081
+EXPOSE 8082
 
 CMD ["java", "-jar", "resource-service.jar"]
