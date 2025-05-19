@@ -1,5 +1,7 @@
 package com.epam.resourceservice.service.impl;
 
+import brave.Span;
+import brave.Tracer;
 import com.epam.resourceservice.client.StorageServiceClient;
 import com.epam.resourceservice.dto.ResourceStorageDTO;
 import com.epam.resourceservice.entity.OutboxEvent;
@@ -30,6 +32,7 @@ public class ResourceServiceImpl implements ResourceService {
 
     private final ResourceRepository resourceRepository;
     private final StorageServiceClient storageServiceClient;
+    private final Tracer tracer;
     private final S3Service s3Service;
     private final OutboxEventRepository outboxEventRepository;
 
@@ -123,6 +126,7 @@ public class ResourceServiceImpl implements ResourceService {
 
     private void recordOutboxEvent(EventType type, Long resourceId, String bucket,
                               String path, String key, byte[] data) {
+        Span current = tracer.currentSpan();
         var outboxEvent = new OutboxEvent();
         outboxEvent.setEventType(type);
         outboxEvent.setResourceId(resourceId);
@@ -130,6 +134,11 @@ public class ResourceServiceImpl implements ResourceService {
         outboxEvent.setPath(path);
         outboxEvent.setFileKey(key);
         outboxEvent.setResourceData(data);
+
+        if (current != null) {
+            outboxEvent.setTraceId(String.valueOf(current.context().traceId()));
+            outboxEvent.setSpanId(String.valueOf(current.context().spanId()));
+        }
         outboxEventRepository.save(outboxEvent);
     }
 }

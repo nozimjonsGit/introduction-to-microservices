@@ -6,6 +6,7 @@ import com.epam.resourceservice.repository.OutboxEventRepository;
 import com.epam.resourceservice.service.KafkaProducerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,17 +31,26 @@ public class OutboxEventScheduler {
     public void publishPendingOutbox() {
         List<OutboxEvent> events = outboxEventRepository.findAll();
         for (OutboxEvent event : events) {
+            String traceId = event.getTraceId();
+            String spanId  = event.getSpanId();
+            MDC.put("X-B3-TraceId", traceId);
+            MDC.put("X-B3-SpanId",  spanId);
+
             try {
                 if (event.getEventType() == EventType.CREATE) {
-                    kafkaProducerService.sendResourceUploadedMessage(event.getResourceId());
-                } else if (event.getEventType() == EventType.DELETE) {
-                    kafkaProducerService.sendResourceDeletedMessage(event.getResourceId());
+                    kafkaProducerService.sendResourceUploadedMessage(
+                            event.getResourceId(), traceId, spanId);
+                } else {
+                    kafkaProducerService.sendResourceDeletedMessage(
+                            event.getResourceId(), traceId, spanId);
                 }
 
                 outboxEventRepository.delete(event);
                 log.debug("Published and removed outbox event id={} type={}", event.getId(), event.getEventType());
             } catch (Exception ex) {
                 log.error("Failed to publish outbox event id={} type={}", event.getId(), event.getEventType(), ex);
+            } finally {
+                MDC.clear();
             }
         }
     }

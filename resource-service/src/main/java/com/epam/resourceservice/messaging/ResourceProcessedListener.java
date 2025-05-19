@@ -3,7 +3,10 @@ package com.epam.resourceservice.messaging;
 import com.epam.resourceservice.service.ResourceService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.slf4j.MDC;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.messaging.handler.annotation.Header;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -18,7 +21,14 @@ public class ResourceProcessedListener {
             groupId = "${kafka.consumer.group-id}",
             containerFactory = "kafkaListenerContainerFactory"
     )
-    public void handleProcessed(Long resourceId) {
+    public void handleProcessed(
+            @Payload Long resourceId,
+            @Header("X-B3-TraceId") String traceId,
+            @Header("X-B3-SpanId")  String spanId
+    ) {
+        MDC.put("X-B3-TraceId", traceId);
+        MDC.put("X-B3-SpanId",  spanId);
+
         log.info("Received resource-processed for id={}", resourceId);
         try {
             resourceService.markProcessed(resourceId);
@@ -26,6 +36,8 @@ public class ResourceProcessedListener {
         } catch (Exception ex) {
             log.error("Error in processed listener for id={}", resourceId, ex);
             throw ex;
+        } finally {
+            MDC.clear();
         }
     }
 }

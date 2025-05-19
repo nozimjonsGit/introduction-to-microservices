@@ -28,4 +28,10 @@ public class OutboxEvent {
 
     @Column(columnDefinition = "bytea")
     private byte[] resourceData;
+
+    @Column(name = "trace_id")
+    private String traceId;
+
+    @Column(name = "span_id")
+    private String spanId;
 }

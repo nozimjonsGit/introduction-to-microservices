@@ -18,3 +18,7 @@ CREATE TABLE IF NOT EXISTS outbox_event
     resource_data BYTEA,
     CONSTRAINT chk_event_type CHECK (event_type IN ('CREATE', 'DELETE'))
 );
+
+ALTER TABLE outbox_event
+    ADD COLUMN trace_id VARCHAR(255),
+    ADD COLUMN span_id  VARCHAR(255);
