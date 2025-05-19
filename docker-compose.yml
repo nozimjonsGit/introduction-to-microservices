@@ -74,6 +74,24 @@ services:
       retries: 5
       start_period: 15s
 
+  storage-service-db:
+    env_file:
+      - .env
+    image: postgres:alpine
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${STORAGES_DB}
+    volumes:
+      - ./init-scripts/storage-db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5435:5432"
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${STORAGES_DB}" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 15s
+
   song-service-db:
     env_file:
       - .env
@@ -105,12 +123,6 @@ services:
       - "./localstack:/var/lib/localstack"
       - "/var/run/docker.sock:/var/run/docker.sock"
       - "./localstack/init-scripts:/etc/localstack/init/ready.d"
-    healthcheck:
-      test: [ "CMD", "awslocal", "s3api", "wait", "bucket-exists", "--bucket", "${AWS_S3_BUCKET_NAME}" ]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 30s
 
   resource-service:
     build: ./resource-service
@@ -149,3 +161,79 @@ services:
         condition: service_started
       eureka-server:
         condition: service_healthy
+
+  storage-service:
+    build: ./storage-service
+    env_file:
+      - .env
+    depends_on:
+      storage-service-db:
+        condition: service_healthy
+      eureka-server:
+        condition: service_healthy
+
+  elasticsearch:
+    image: elastic/elasticsearch:8.17.5
+    container_name: elasticsearch
+    restart: always
+    environment:
+      - xpack.security.enabled=false
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - es-data:/usr/share/elasticsearch/data
+
+  logstash:
+    image: elastic/logstash:8.17.5
+    container_name: logstash
+    restart: always
+    depends_on:
+      - elasticsearch
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./logstash/pipeline/pipeline.conf:/usr/share/logstash/pipeline/pipeline.conf:ro
+
+  kibana:
+    image: elastic/kibana:8.17.5
+    restart: always
+    depends_on:
+      - elasticsearch
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - xpack.security.enabled=false
+    ports:
+      - "5601:5601"
+
+  prometheus:
+    image: prom/prometheus:v2.53.4
+    restart: always
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=15d"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  grafana:
+    image: grafana/grafana:11.6.0
+    container_name: grafana
+    depends_on:
+      - prometheus
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana:/etc/grafana/provisioning:ro
+      - grafana:/var/lib/grafana
+
+volumes:
+  es-data:
+  grafana:

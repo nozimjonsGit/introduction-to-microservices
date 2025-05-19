@@ -52,4 +52,10 @@ public class SongServiceImpl implements SongService {
 
         return existingIds;
     }
+
+    @Override
+    @Transactional
+    public void deleteSongById(Long id) {
+        songRepository.deleteById(id);
+    }
 }

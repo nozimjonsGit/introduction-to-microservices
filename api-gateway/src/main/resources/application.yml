@@ -22,6 +22,15 @@ spring:
               args:
                 name: songCB
                 fallbackUri: forward:/fallback/song
+        - id: storage-service
+          uri: lb://STORAGE-SERVICE
+          predicates:
+            - Path=/storages/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: storageCB
+                fallbackUri: forward:/fallback/storage
 
 eureka:
   client:
@@ -32,8 +41,17 @@ management:
   endpoints:
     web:
       exposure:
-        include: health
+        include: health, info, prometheus
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    tags:
+      application: api-gateway
+  tracing:
+    sampling:
+      probability: 1.0
 
 server:
   port: 8080
-
