@@ -172,6 +172,13 @@ services:
       eureka-server:
         condition: service_healthy
 
+  auth-server:
+    build: ./auth-server
+    env_file:
+      - .env
+    ports:
+      - "9000:9000"
+
   elasticsearch:
     image: elastic/elasticsearch:8.17.5
     container_name: elasticsearch

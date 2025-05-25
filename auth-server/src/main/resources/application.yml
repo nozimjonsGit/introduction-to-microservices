@@ -2,21 +2,15 @@ spring:
   application:
     name: auth-server
 
-  security:
-    oauth2:
-      authorization:
-        issuer-uri: ${AUTH_SERVER_URL:http://localhost:9000}
+auth:
+  clients:
+    gateway-secret: ${GATEWAY_CLIENT_SECRET:gateway-secret}
+  jwk-key-size: 2048
 
-      resourceserver:
-        jwt:
-          jwk-set-uri: ${AUTH_SERVER_URL:http://localhost:9000}/oauth2/jwks
+logging:
+  level:
+    org.springframework.security: INFO
+    org.springframework.security.oauth2: DEBUG
 
 server:
   port: ${AUTH_SERVER_PORT:9000}
-
-auth:
-  clients:
-    storage-secret: ${STORAGE_CLIENT_SECRET:storage-secret}
-    user-secret: ${USER_CLIENT_SECRET:user-secret}
-    gateway-secret: ${GATEWAY_CLIENT_SECRET:gateway-secret}
-  jwk-key-size: 2048
