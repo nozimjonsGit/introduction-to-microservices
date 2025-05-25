@@ -39,7 +39,7 @@ public class SecurityConfig {
     }
 
 
-        @Bean
+    @Bean
     public UserDetailsService userDetailsService() {
         UserDetails adminUser = User.builder()
                 .username("admin")
