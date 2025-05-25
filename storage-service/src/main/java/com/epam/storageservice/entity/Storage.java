@@ -23,7 +23,7 @@ public class Storage {
     @Enumerated(value = EnumType.STRING)
     private StorageType type;
 
-    @Column(nullable = false)
+    @Column(nullable = false, unique = true)
     private String bucket;
 
     @Column(nullable = false)

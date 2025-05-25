@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS storages
 (
     id     BIGSERIAL PRIMARY KEY,
     type   VARCHAR(50)  NOT NULL CHECK (type IN ('STAGING', 'PERMANENT')),
-    bucket VARCHAR(255) NOT NULL,
+    bucket VARCHAR(255) NOT NULL UNIQUE,
     path   VARCHAR(255) NOT NULL
 );
 
